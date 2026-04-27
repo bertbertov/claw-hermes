@@ -8,6 +8,7 @@ from pathlib import Path
 import click
 
 from claw_hermes import __version__, config as config_mod, github, hermes, openclaw, router
+from claw_hermes.skill_cli import skill_group
 
 
 @click.group()
@@ -144,6 +145,9 @@ def openclaw_probe(ctx: click.Context) -> None:
     """Read-only HTTP GET to the OpenClaw gateway health endpoint."""
     avail = openclaw.probe(ctx.obj["config"].openclaw)
     click.echo(json.dumps(avail.__dict__, indent=2))
+
+
+main.add_command(skill_group)
 
 
 if __name__ == "__main__":

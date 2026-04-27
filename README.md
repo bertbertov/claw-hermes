@@ -117,6 +117,20 @@ mkdir -p ~/.claude/skills/claw-hermes
 cp -r skill/* ~/.claude/skills/claw-hermes/
 ```
 
+## Authoring skills (v0.2)
+
+claw-hermes ships an `agentskills.io` v1.0 manifest schema with a `runtimes:` extension, plus a linter and scaffolder:
+
+```bash
+claw-hermes skill new my-skill --runtime both \
+  --description "Description >=50 chars describing when to invoke the skill." \
+  --author "Your Name"
+claw-hermes skill lint my-skill/
+claw-hermes skill list ./skills/
+```
+
+See [`docs/manifest.md`](docs/manifest.md) for the full schema, every lint code, and a dual-runtime example. A minimal valid skill lives at [`examples/skills/hello-world/`](examples/skills/hello-world/).
+
 ## Honest v0.1 scope
 
 | Capability | v0.1 status |

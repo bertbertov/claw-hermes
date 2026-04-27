@@ -1,6 +1,21 @@
 ---
 name: claw-hermes
 description: Bridges Hermes Agent (closed learning loop, FTS5, Honcho) and OpenClaw (~24 channels, Voice Wake, Live Canvas) into one personal AI OS. Use when the user wants to (1) review PRs / triage issues / classify AI-slop on GitHub repos, (2) push events to messaging channels (Telegram, WhatsApp, iMessage, Discord, Slack, Matrix, WeChat, …), (3) bridge memory between channels (iMessage remembers Slack), or (4) ask "is there a way to use Hermes and OpenClaw together?" — claw-hermes is that bridge.
+version: 0.2.0
+license: MIT
+author: Albert Kamalov
+agentskills_version: "1.0"
+runtimes:
+  hermes:
+    entrypoint: python -m claw_hermes.cli
+    capabilities: [github, memory.recall, memory.write, subprocess]
+  openclaw:
+    entrypoint: claw-hermes
+    capabilities: [github, channels.send, network]
+  both:
+    requires_capabilities: [github, memory.recall, channels.send]
+keywords: [github, agent, hermes, openclaw, automation, messaging, ai]
+homepage: https://github.com/bertbertov/claw-hermes
 ---
 
 # claw-hermes — personal AI OS bridge
@@ -49,7 +64,15 @@ Optional but recommended for full functionality:
 | `claw-hermes hermes-probe` | Read-only Hermes availability check |
 | `claw-hermes openclaw-probe` | Read-only OpenClaw gateway HTTP probe |
 
-## Coming in v0.2 (the wedge)
+## v0.2 commands (shipped)
+
+| Command | What |
+|---|---|
+| `claw-hermes skill lint <path>` | Validate a SKILL.md manifest (file or directory of skills) against agentskills.io v1.0 + the `runtimes:` extension |
+| `claw-hermes skill new <name>` | Scaffold a new dual-runtime skill at `<name>/SKILL.md` and lint it automatically |
+| `claw-hermes skill list <dir>` | Discover all `*/SKILL.md` skills under a directory and print a one-line summary each |
+
+## Coming in v0.3
 
 | Command | What |
 |---|---|
