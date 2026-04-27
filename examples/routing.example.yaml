@@ -1,0 +1,54 @@
+# claw-hermes routing config example.
+# Copy to ~/.claw-hermes/config.yaml or pass with --config.
+
+hermes:
+  binary: hermes
+  enabled: true
+  # Pin a specific model; leave null to use whatever Hermes has selected.
+  model: null
+  # The prompt template fed to `hermes --non-interactive`.
+  # Available format keys: {title} {author} {changed_files} {diff}
+  review_template: |
+    Review this GitHub PR. Be terse. Flag risk, missing tests, breaking changes.
+
+    Title: {title}
+    Author: {author}
+    Files changed: {changed_files}
+
+    Diff (truncated to 8KB):
+    {diff}
+
+openclaw:
+  # Local OpenClaw gateway. Default port matches `openclaw gateway --port 18789`.
+  gateway_url: http://localhost:18789
+  enabled: true
+  timeout_seconds: 5.0
+
+# Channels used when no rule matches an event.
+default_channels:
+  - cli
+
+# GitHub event → channel routing. Urgency hints can be used by downstream
+# OpenClaw config to pick notification sounds, retry policies, etc.
+routes:
+  - event: ci_failed
+    channels: [imessage, telegram]
+    urgency: urgent
+  - event: pr_review_requested
+    channels: [telegram, slack]
+    urgency: normal
+  - event: pr_opened
+    channels: [slack]
+    urgency: normal
+  - event: pr_merged
+    channels: [discord]
+    urgency: normal
+  - event: release_published
+    channels: [discord, slack]
+    urgency: normal
+  - event: daily_digest
+    channels: [email, telegram]
+    urgency: digest
+  - event: issue_opened
+    channels: [slack]
+    urgency: normal
