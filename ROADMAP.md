@@ -21,10 +21,14 @@
 - ✅ Claude Code skill (drop-in at `skill/SKILL.md`)
 - ✅ MIT license, public repo
 
-### v0.2 — The maintainer wedge (4 weeks)
+### v0.2 — The maintainer wedge + skill linter (in progress)
 
-**Goal:** ship a beachhead use case that solves an *acute, dated* pain — AI-slop on OSS PRs (curl killed bug bounties Jan 2026; OpenSSF issue #178 actively asks for this; Stenberg/Jazzband/Godot maintainers publicly burning out).
+**Goal:** ship a beachhead use case that solves an *acute, dated* pain — AI-slop on OSS PRs (curl killed bug bounties Jan 2026; OpenSSF issue #178 actively asks for this; Stenberg/Jazzband/Godot maintainers publicly burning out) — and ship the cross-runtime skill story (manifest schema, linter, scaffolder).
 
+- ✅ **agentskills.io `runtimes:` extension** — first-class manifest field declaring `hermes` / `openclaw` / `both`, with entrypoints and capability hints. Schema documented in [`docs/manifest.md`](docs/manifest.md).
+- ✅ **`claw-hermes skill lint <path>`** — exhaustive validator with stable issue codes; supports `--json` and `--strict`; exit codes 0/1/2 for clean/warning/error.
+- ✅ **`claw-hermes skill new <name>`** — interactive-ish scaffolder that writes a passing-lint manifest for any of `--runtime hermes|openclaw|both` and auto-runs the linter.
+- ✅ **`claw-hermes skill list <dir>`** — discovers `*/SKILL.md` and prints a one-line summary per skill.
 - `claw-hermes slop-classify <pr-url>` — classifies PRs as `human` / `ai-slop` / `ai-assisted-legit` with confidence + signature
 - Cross-repo learning — every `--reject` / `--merge` decision trains shared signatures (the moat GitHub structurally won't replicate)
 - Per-contributor model via Honcho — surfaces "this contributor's last 5 PRs all merged"
