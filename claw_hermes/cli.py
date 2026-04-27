@@ -7,7 +7,16 @@ from pathlib import Path
 
 import click
 
-from claw_hermes import __version__, config as config_mod, github, hermes, openclaw, router
+from claw_hermes import (
+    __version__,
+    config as config_mod,
+    github,
+    hermes,
+    openclaw,
+    router,
+    signatures,
+    slop,
+)
 from claw_hermes.skill_cli import skill_group
 
 
@@ -99,6 +108,88 @@ def pr_review(ctx: click.Context, repo: str, number: int, deliver: bool, dry_run
         delivery = openclaw.deliver(
             cfg.openclaw, list(decision.channels), result.summary,
             title=f"PR #{pr.number}: {pr.title}", dry_run=dry_run,
+        )
+        click.echo(f"\nrouted to: {', '.join(delivery.delivered_to)}"
+                   + (" [dry-run]" if delivery.dry_run else ""))
+        if delivery.failed:
+            click.echo(f"failed:    {', '.join(delivery.failed)}", err=True)
+
+
+@main.command("slop-classify")
+@click.argument("repo")
+@click.argument("number", type=int)
+@click.option("--json", "as_json", is_flag=True, help="Print machine-readable JSON.")
+@click.option("--record", is_flag=True,
+              help="Persist the verdict to the local signature store for cross-repo learning.")
+@click.option("--deliver", is_flag=True,
+              help="Route the verdict via OpenClaw using the pr_review_requested rule.")
+@click.option("--dry-run", is_flag=True,
+              help="With --deliver, skip the actual HTTP POST to the gateway.")
+@click.pass_context
+def slop_classify(
+    ctx: click.Context,
+    repo: str,
+    number: int,
+    as_json: bool,
+    record: bool,
+    deliver: bool,
+    dry_run: bool,
+) -> None:
+    """Classify a PR as human / ai-slop / ai-assisted-legit."""
+    cfg = ctx.obj["config"]
+    try:
+        pr = github.fetch_pr(repo, number)
+        diff = github.fetch_pr_diff(repo, number)
+    except github.GhNotFoundError as e:
+        click.echo(f"error: {e}", err=True)
+        sys.exit(2)
+    except github.GhCallError as e:
+        click.echo(f"error: {e}", err=True)
+        sys.exit(3)
+
+    verdict = slop.classify(cfg.hermes, pr, diff)
+
+    record_id: int | None = None
+    if record:
+        store = signatures.SignatureStore()
+        record_id = store.record(verdict, repo=repo, pr_number=pr.number,
+                                 author=pr.author, source="manual")
+
+    if as_json:
+        payload = {
+            "repo": repo,
+            "pr_number": pr.number,
+            "author": pr.author,
+            "label": verdict.label,
+            "confidence": verdict.confidence,
+            "signals": list(verdict.signals),
+            "reasoning": verdict.reasoning,
+            "used_hermes": verdict.used_hermes,
+            "recorded_id": record_id,
+        }
+        click.echo(json.dumps(payload, indent=2))
+    else:
+        click.echo(f"#{pr.number} {pr.title}")
+        click.echo(f"  author:     @{pr.author}")
+        click.echo(f"  label:      {verdict.label}")
+        click.echo(f"  confidence: {verdict.confidence:.2f}")
+        click.echo(f"  signals:    {', '.join(verdict.signals) if verdict.signals else '(none)'}")
+        click.echo(f"  reasoning:  {verdict.reasoning}")
+        click.echo(f"  source:     {'hermes' if verdict.used_hermes else 'heuristic'}")
+        if record_id is not None:
+            click.echo(f"  recorded:   id={record_id}")
+
+    if deliver:
+        decision = router.decide(cfg, "pr_review_requested")
+        body = (
+            f"slop-classify {repo}#{pr.number} by @{pr.author}\n"
+            f"label: {verdict.label} (confidence {verdict.confidence:.2f})\n"
+            f"signals: {', '.join(verdict.signals) or '(none)'}\n"
+            f"reasoning: {verdict.reasoning}"
+        )
+        delivery = openclaw.deliver(
+            cfg.openclaw, list(decision.channels), body,
+            title=f"slop: {repo}#{pr.number} {verdict.label}", dry_run=dry_run,
         )
         click.echo(f"\nrouted to: {', '.join(delivery.delivered_to)}"
                    + (" [dry-run]" if delivery.dry_run else ""))

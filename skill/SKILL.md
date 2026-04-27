@@ -68,16 +68,32 @@ Optional but recommended for full functionality:
 
 | Command | What |
 |---|---|
-| `claw-hermes skill lint <path>` | Validate a SKILL.md manifest (file or directory of skills) against agentskills.io v1.0 + the `runtimes:` extension |
+| `claw-hermes slop-classify <repo> <pr#>` | Classify a PR as human / ai-slop / ai-assisted-legit (Hermes if installed; deterministic heuristic fallback) |
+| `claw-hermes slop-classify <repo> <pr#> --record` | Persist the verdict to the cross-repo signature store at `~/.claw-hermes/signatures.db` |
+| `claw-hermes slop-classify <repo> <pr#> --json` | Machine-readable output |
+| `claw-hermes slop-classify <repo> <pr#> --deliver --dry-run` | Route verdict via OpenClaw `pr_review_requested` rule |
+| `claw-hermes skill lint <path>` | Validate a SKILL.md manifest (file or directory) against agentskills.io v1.0 + the `runtimes:` extension |
 | `claw-hermes skill new <name>` | Scaffold a new dual-runtime skill at `<name>/SKILL.md` and lint it automatically |
 | `claw-hermes skill list <dir>` | Discover all `*/SKILL.md` skills under a directory and print a one-line summary each |
+
+## Slop-classifier signals (v0.2)
+
+The heuristic fallback fires named signals that get persisted with each `--record`-ed verdict.
+Use these names if you want to inspect or filter the SQLite store directly:
+
+- `ai_phrase_present` — body or title contains "as an ai", "generated with", "co-authored-by: claude", etc.
+- `emoji_heavy_body` — body is at least 40 chars and >5% emoji.
+- `suspiciously_round_size` — additions+deletions is a round multiple of 100 and >=100.
+- `mass_rename_diff` — additions == deletions, both >0, across many files.
+- `hallucinated_import` — diff imports a non-existent stdlib-shaped module (e.g. `json_helper`, `requests_async`).
+- `no_tests_on_large_pr` — diff touches >100 lines but no `tests/`, `_test.`, or `/spec` paths.
+- `templated_phrasing` — body contains 4+ section markers like `## Summary`, `- [x]`.
 
 ## Coming in v0.3
 
 | Command | What |
 |---|---|
-| `claw-hermes slop-classify <pr-url>` | Classify a PR as human / ai-slop / ai-assisted-legit (cross-repo learned signatures) |
-| `claw-hermes triage <repo>` | Per-contributor model surfaces "this contributor's last 5 PRs all merged" |
+| `claw-hermes triage <repo>` | Per-contributor Honcho model surfaces "this contributor's last 5 PRs all merged" |
 | `claw-hermes verify` | Walk every pipeline stage; refuse to claim success without terminal-channel ack |
 
 ## Workflow patterns
