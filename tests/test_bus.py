@@ -7,7 +7,6 @@ from __future__ import annotations
 import asyncio
 import socket
 
-import pytest
 from websockets.asyncio.client import connect as ws_connect
 
 from claw_hermes.bus import EventBus
