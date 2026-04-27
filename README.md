@@ -41,6 +41,25 @@ A working spine and a beachhead use case:
 
 The **wedge use case** v0.1 starts with: **GitHub workflow orchestration for OSS maintainers** — PR review, CI alerts, multi-channel digests. v0.2 expands this into the full *AI-slop firewall + maintainer co-pilot* (see [`ROADMAP.md`](ROADMAP.md)).
 
+## v0.2-preview (federation foundation, on `feat/v0.2-federation-event-bus`)
+
+The skeleton the v0.3 federation will ride on. Conformant to [`ARCHITECTURE.md`](ARCHITECTURE.md) sections 1 + 3.
+
+- ✅ Unified `Event` type (`claw_hermes/event.py`) — frozen dataclass, ULID `event_id` (stdlib only, monotonic within the same ms), NDJSON `to_json` / `from_json`, `KNOWN_KINDS` for the v1.0 event vocabulary
+- ✅ `MemoryBroker` Protocol + `SqliteMemoryBroker` (`claw_hermes/memory.py`) — single-writer SQLite + FTS5 over `payload.text`, idempotent on `event_id`, default DB at `~/.claw-hermes/memory.db`
+- ✅ Event bus skeleton (`claw_hermes/bus.py`) — `websockets`-based async server + client, NDJSON wire format, `system.heartbeat` every 30s, malformed frames logged and dropped
+- ✅ CLI: `claw-hermes memory record-test`, `memory show`, `bus serve`, `bus emit`
+- ✅ 27 new tests (42 total, all green)
+
+What this preview is **not**: the canonical Hermes wrapper. v0.3 swaps `SqliteMemoryBroker` for a direct broker over Hermes' FTS5 + Honcho store and replaces the v0.1 subprocess calls with the bus.
+
+```bash
+claw-hermes memory record-test          # write a synthetic Event
+claw-hermes memory show --limit 5       # print recent Events as NDJSON
+claw-hermes bus serve --port 18790      # run the WebSocket server
+claw-hermes bus emit message.inbound "did the GLD bot fire?"
+```
+
 ## What's coming
 
 Read [`ROADMAP.md`](ROADMAP.md) for the v0.2 → v1.0 trajectory. Highlights:
