@@ -21,6 +21,16 @@ class HermesConfig:
         "Title: {title}\nAuthor: {author}\nFiles changed: {changed_files}\n\n"
         "Diff (truncated to 8KB):\n{diff}\n"
     )
+    slop_template: str = (
+        "Classify this GitHub PR as one of: human, ai-slop, ai-assisted-legit.\n"
+        "Reply on three lines, exactly:\n"
+        "LABEL: <human|ai-slop|ai-assisted-legit>\n"
+        "CONFIDENCE: <0.0-1.0>\n"
+        "REASONING: <one short sentence>\n\n"
+        "Title: {title}\nAuthor: {author}\nFiles changed: {changed_files}\n"
+        "Body:\n{body}\n\n"
+        "Diff (truncated to 8KB):\n{diff}\n"
+    )
 
 
 @dataclass
@@ -73,6 +83,7 @@ class Config:
                 "enabled": self.hermes.enabled,
                 "model": self.hermes.model,
                 "review_template": self.hermes.review_template,
+                "slop_template": self.hermes.slop_template,
             },
             "openclaw": {
                 "gateway_url": self.openclaw.gateway_url,
@@ -100,6 +111,7 @@ def load(path: Path | str | None = None) -> Config:
             enabled=h.get("enabled", cfg.hermes.enabled),
             model=h.get("model", cfg.hermes.model),
             review_template=h.get("review_template", cfg.hermes.review_template),
+            slop_template=h.get("slop_template", cfg.hermes.slop_template),
         )
     if "openclaw" in raw:
         o = raw["openclaw"]

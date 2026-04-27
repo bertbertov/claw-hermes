@@ -41,11 +41,36 @@ A working spine and a beachhead use case:
 
 The **wedge use case** v0.1 starts with: **GitHub workflow orchestration for OSS maintainers** — PR review, CI alerts, multi-channel digests. v0.2 expands this into the full *AI-slop firewall + maintainer co-pilot* (see [`ROADMAP.md`](ROADMAP.md)).
 
+## Now available in main: slop-classify (preview)
+
+The v0.2 wedge is live on `main` as a preview:
+
+```bash
+# Classify a PR as human / ai-slop / ai-assisted-legit
+claw-hermes slop-classify owner/repo 42
+
+# Persist the verdict to the local cross-repo signature store
+claw-hermes slop-classify owner/repo 42 --record
+
+# Machine-readable output
+claw-hermes slop-classify owner/repo 42 --json
+
+# Route the verdict through OpenClaw (uses the pr_review_requested rule)
+claw-hermes slop-classify owner/repo 42 --deliver --dry-run
+```
+
+The classifier uses Hermes when available (parses a 3-line `LABEL/CONFIDENCE/REASONING` response)
+and falls back to a deterministic heuristic that detects emoji-heavy bodies, "As an AI" phrasing,
+suspiciously round line counts, mass-rename diffs, hallucinated imports, and zero-test changes
+on large PRs. Recorded verdicts populate `~/.claw-hermes/signatures.db` for the v0.3 cross-repo
+learning loop.
+
 ## What's coming
 
 Read [`ROADMAP.md`](ROADMAP.md) for the v0.2 → v1.0 trajectory. Highlights:
 
-- **v0.2** — `slop-classify` command: cross-repo learning of human-vs-AI-slop signatures (curl killed bounties Jan 2026; this is the dated, acute pain)
+- **v0.2** — `slop-classify` (preview, in main) + cross-repo signature DB; full per-contributor
+  Honcho models, GitHub App template, and `claw-hermes verify` still ahead
 - **v0.3** — Federation MVP: unified `Event` JSON, `MemoryBroker` wrapping Hermes FTS5+Honcho, OpenClaw events flow back into the canonical store. iMessage remembers Slack.
 - **v0.4** — MCP server + client; `fanout()` API for parallel subagents; skill publisher to ClawHub + Hermes
 - **v0.5** — Cross-runtime self-improvement: trajectories that span both runtimes auto-synthesize *bridge skills*
@@ -87,6 +112,9 @@ claw-hermes pr-review owner/repo 42
 # Generate a review and route through OpenClaw (dry-run shows targets without sending)
 claw-hermes pr-review owner/repo 42 --deliver --dry-run
 claw-hermes pr-review owner/repo 42 --deliver           # actually deliver
+
+# Classify a PR for AI-slop (v0.2 preview)
+claw-hermes slop-classify owner/repo 42 --record
 ```
 
 ## Configuration
@@ -128,7 +156,8 @@ cp -r skill/* ~/.claude/skills/claw-hermes/
 | OpenClaw HTTP integration (dry-run + delivery) | ✅ Wired, dry-run-tested |
 | OpenClaw gateway probe | ✅ Real |
 | **Real end-to-end Telegram/iMessage delivery** | ⏳ Requires OpenClaw daemon — operator-tested only |
-| Slop classifier | ⏳ v0.2 |
+| Slop classifier (heuristic + Hermes) | ✅ Preview in main (v0.2) |
+| Cross-repo signature store (SQLite) | ✅ Preview in main (v0.2) |
 | Federated memory broker | ⏳ v0.3 |
 | MCP server + client | ⏳ v0.4 |
 | Cross-runtime skill autogen | ⏳ v0.5 |
@@ -148,12 +177,14 @@ All tests are mocked or pure-function — `pytest` requires neither Hermes nor O
 
 ```
 claw_hermes/
-├── cli.py        # Click CLI — entry points
-├── config.py     # YAML config + dataclass schema
-├── router.py     # Pure-function event → channel routing
-├── github.py     # `gh` CLI subprocess wrapper
-├── hermes.py     # Hermes integration (with deterministic fallback)
-└── openclaw.py   # OpenClaw gateway HTTP client (with dry-run mode)
+├── cli.py         # Click CLI — entry points
+├── config.py      # YAML config + dataclass schema
+├── router.py      # Pure-function event → channel routing
+├── github.py      # `gh` CLI subprocess wrapper
+├── hermes.py      # Hermes integration (with deterministic fallback)
+├── openclaw.py    # OpenClaw gateway HTTP client (with dry-run mode)
+├── slop.py        # AI-slop PR classifier (Hermes + heuristic fallback)
+└── signatures.py  # Cross-repo signature SQLite store
 ```
 
 The bridge is intentionally thin. It does not reimplement either upstream — it composes them. See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the v1.0 federation design.
