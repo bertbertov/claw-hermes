@@ -1,7 +1,9 @@
 """claw-hermes CLI — the user-facing surface that ties everything together."""
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 import sys
 from pathlib import Path
 
@@ -17,6 +19,9 @@ from claw_hermes import (
     signatures,
     slop,
 )
+from claw_hermes.bus import DEFAULT_HOST, DEFAULT_PORT, EventBus
+from claw_hermes.event import Event
+from claw_hermes.memory import SqliteMemoryBroker
 from claw_hermes.skill_cli import skill_group
 
 
@@ -239,6 +244,118 @@ def openclaw_probe(ctx: click.Context) -> None:
 
 
 main.add_command(skill_group)
+
+
+@main.group()
+def memory() -> None:
+    """v0.2-preview: federated event memory (SQLite + FTS5)."""
+
+
+@memory.command("show")
+@click.option("--limit", type=int, default=20, help="Max events to print (default 20).")
+@click.option("--kind", type=str, default=None, help="Filter by event kind.")
+@click.option("--db", "db_path", type=click.Path(dir_okay=False), default=None,
+              help="Override memory DB path.")
+def memory_show(limit: int, kind: str | None, db_path: str | None) -> None:
+    """Print recent Events from the local memory broker as compact JSON, one per line."""
+    broker = SqliteMemoryBroker(Path(db_path) if db_path else None)
+    try:
+        events = broker.recall(kind=kind, limit=limit)
+        for ev in events:
+            click.echo(ev.to_json())
+        if not events:
+            click.echo(f"(no events; db={broker.path})", err=True)
+    finally:
+        broker.close()
+
+
+@memory.command("record-test")
+@click.option("--db", "db_path", type=click.Path(dir_okay=False), default=None,
+              help="Override memory DB path.")
+def memory_record_test(db_path: str | None) -> None:
+    """Append a synthetic Event so the pipeline can be smoke-tested."""
+    broker = SqliteMemoryBroker(Path(db_path) if db_path else None)
+    try:
+        ev = Event.new(
+            kind="message.inbound",
+            actor={"id": "user:test", "channel": "cli", "handle": "smoke-test"},
+            session_id="sess_smoke",
+            payload={"text": "claw-hermes memory record-test ping"},
+            trace={"origin": "cli.memory.record-test"},
+        )
+        broker.record_event(ev)
+        click.echo(ev.to_json())
+        click.echo(f"(recorded; total events in {broker.path}: {broker.count()})", err=True)
+    finally:
+        broker.close()
+
+
+@main.group()
+def bus() -> None:
+    """v0.2-preview: NDJSON-over-WebSocket event bus."""
+
+
+@bus.command("serve")
+@click.option("--host", default=DEFAULT_HOST, show_default=True)
+@click.option("--port", default=DEFAULT_PORT, show_default=True, type=int)
+@click.option("--persist/--no-persist", default=True,
+              help="Also record received events into the local memory broker.")
+@click.option("--db", "db_path", type=click.Path(dir_okay=False), default=None,
+              help="Override memory DB path (used when --persist).")
+def bus_serve(host: str, port: int, persist: bool, db_path: str | None) -> None:
+    """Run the event bus server. Logs received Events to stdout."""
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    broker = SqliteMemoryBroker(Path(db_path) if db_path else None) if persist else None
+
+    async def on_event(event: Event) -> None:
+        click.echo(event.to_json())
+        if broker is not None:
+            broker.record_event(event)
+
+    async def run() -> None:
+        eb = EventBus()
+        server = await eb.serve(host=host, port=port, on_event=on_event)
+        click.echo(f"bus: listening on ws://{host}:{port}", err=True)
+        try:
+            await server.serve_forever()
+        finally:
+            if broker is not None:
+                broker.close()
+
+    try:
+        asyncio.run(run())
+    except KeyboardInterrupt:
+        click.echo("bus: stopped", err=True)
+
+
+@bus.command("emit")
+@click.argument("kind")
+@click.argument("text")
+@click.option("--url", default=f"ws://{DEFAULT_HOST}:{DEFAULT_PORT}", show_default=True)
+@click.option("--session-id", default="sess_cli")
+def bus_emit(kind: str, text: str, url: str, session_id: str) -> None:
+    """Connect to a running bus, send one Event, exit."""
+    async def run() -> None:
+        eb = EventBus()
+        conn = await eb.connect(url)
+        try:
+            ev = Event.new(
+                kind=kind,
+                actor={"id": "user:cli", "channel": "cli", "handle": "claw-hermes-cli"},
+                session_id=session_id,
+                payload={"text": text},
+                trace={"origin": "cli.bus.emit"},
+            )
+            await conn.send(ev)
+            click.echo(ev.to_json())
+        finally:
+            await conn.close()
+
+    try:
+        asyncio.run(run())
+    except OSError as e:
+        click.echo(f"bus: connect failed: {e}", err=True)
+        sys.exit(4)
 
 
 if __name__ == "__main__":

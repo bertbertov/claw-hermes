@@ -35,6 +35,7 @@
 - Multi-channel digest (Slack/Discord/Matrix) of slop-quarantined queue
 - GitHub App template (`/install`) for one-click subscription
 - `claw-hermes verify` — walks every pipeline stage, refuses to report success without terminal-channel ack (codifying verify-end-to-end into the bridge itself)
+- ✅ **v0.2-preview shipped on `feat/v0.2-federation-event-bus`:** unified `Event` type, `MemoryBroker` Protocol with a SQLite + FTS5 default, async WebSocket bus skeleton (`bus serve` / `bus emit`), `memory record-test` / `memory show` CLI. Federation end-to-end (`MemoryBroker` over Hermes' FTS5 + Honcho, OpenClaw events flowing into the canonical store) is still v0.3.
 
 **Distribution:** seed in r/LocalLLaMA, Nous Research Discord, OpenClaw "Friends of the Crustacean" Discord, OpenSSF working group, OSS maintainer Twitter.
 
@@ -42,11 +43,12 @@
 
 **Goal:** make the marriage *internal*, not just CLI-level. iMessage remembers Slack.
 
-- Unified `Event` type (NDJSON over WebSocket between Gateway and Core)
-- `MemoryBroker` wrapping Hermes' FTS5 + Honcho — Hermes is canonical, OpenClaw becomes a writer-client
+- ✅ Unified `Event` type (NDJSON over WebSocket between Gateway and Core) — *shipped as v0.2-preview*
+- ✅ `MemoryBroker` Protocol — *interface shipped as v0.2-preview with SQLite default; v0.3 replaces it with a direct wrapper over Hermes' FTS5 + Honcho so Hermes becomes canonical and OpenClaw a writer-client*
 - `clawhermes skill lint` — validates dual-runtime manifests (`agentskills.io` extended with `runtimes: [hermes, openclaw, both]`)
 - OS-keychain auth vault (Keychain / Credential Manager / libsecret)
 - Replace v0.1 subprocess calls with the bus
+- Federation end-to-end: an OpenClaw inbound message records into the canonical store and is recallable from a Hermes session keyed on `user_identity_id`, not `channel_id` — *the iMessage-remembers-Slack acceptance test*
 
 ### v0.4 — MCP + fan-out (8 weeks)
 
